@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cammina il Mondo</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,400;0,500;1,400&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --green:#1D9E75;--green-light:#E1F5EE;--green-dark:#085041;--green-mid:#0F6E56;
+  --amber:#EF9F27;--amber-light:#FAEEDA;
+  --gray-50:#F7F6F2;--gray-100:#EEECE6;--gray-200:#D8D5CC;
+  --gray-400:#9A9890;--gray-600:#5C5A54;--gray-900:#1A1916;
+  --border:rgba(26,25,22,0.10);--border-mid:rgba(26,25,22,0.18);
+  --r-sm:8px;--r-md:12px;--r-lg:20px;--r-xl:36px;
+  --ff:'DM Sans',system-ui,sans-serif;
+  --ff-d:'Fraunces',Georgia,serif;
+}
+html,body{height:100%;font-family:var(--ff);background:var(--gray-100);color:var(--gray-900);overflow-x:hidden}
+
+/* ── PAGE ── */
+.page{min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:32px 16px 56px;gap:28px}
+.page-hdr{text-align:center;max-width:480px}
+.page-hdr h1{font-family:var(--ff-d);font-size:clamp(26px,5vw,40px);font-weight:500;line-height:1.2}
+.page-hdr h1 em{font-style:italic;color:var(--green)}
+.page-hdr p{font-size:14px;color:var(--gray-600);margin-top:8px;line-height:1.6}
+
+/* ── STAGE ── */
+.stage{display:flex;gap:36px;align-items:flex-start;justify-content:center;flex-wrap:wrap;width:100%;max-width:860px}
+
+/* ── PHONE ── */
+.phone-wrap{position:relative;flex-shrink:0}
+.phone{
+  width:280px;height:590px;
+  border:2px solid rgba(255,255,255,0.9);
+  border-radius:var(--r-xl);overflow:hidden;
+  background:#fff;display:flex;flex-direction:column;position:relative;
+  box-shadow:0 32px 80px rgba(0,0,0,0.16),0 8px 20px rgba(0,0,0,0.08);
+}
+.notch{position:absolute;top:0;left:50%;transform:translateX(-50%);width:84px;height:22px;background:#fff;border-radius:0 0 14px 14px;z-index:20;display:flex;align-items:center;justify-content:center}
+.notch-dot{width:6px;height:6px;border-radius:50%;background:var(--gray-200)}
+.sbar{padding:14px 18px 2px;display:flex;justify-content:space-between;flex-shrink:0;background:#fff;z-index:5}
+.sbar span{font-size:10px;font-weight:500}
+.sbar small{font-size:10px;color:var(--gray-400)}
+
+.toast{position:absolute;top:54px;left:10px;right:10px;background:#fff;border:1.5px solid var(--green);border-radius:var(--r-md);padding:9px 12px;display:flex;gap:8px;align-items:center;opacity:0;transition:opacity .3s;z-index:30;pointer-events:none}
+.toast.show{opacity:1}
+.toast p{font-size:11px;font-weight:500}
+.toast small{font-size:10px;color:var(--gray-400)}
+
+/* ── SCREENS ── */
+.screen{display:none;flex-direction:column;flex:1;overflow:hidden;background:#fff}
+.screen.active{display:flex;animation:sIn .2s ease}
+@keyframes sIn{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
+.scroll{flex:1;overflow-y:auto;scrollbar-width:none}
+.scroll::-webkit-scrollbar{display:none}
+
+/* BOTTOM NAV */
+.bnav{display:flex;border-top:0.5px solid var(--border);background:#fff;flex-shrink:0;padding-bottom:4px}
+.bni{flex:1;display:flex;flex-direction:column;align-items:center;padding:6px 0 2px;cursor:pointer;gap:2px;transition:opacity .15s}
+.bni:hover{opacity:.65}
+.bni svg{width:15px;height:15px;stroke:var(--gray-400);fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.bni.on svg{stroke:var(--green)}
+.bni span{font-size:9px;color:var(--gray-400)}
+.bni.on span{color:var(--green)}
+
+/* SHARED */
+.hdr{padding:11px 14px 7px;border-bottom:0.5px solid var(--border);flex-shrink:0}
+.hdr h2{font-size:14px;font-weight:500;font-family:var(--ff-d)}
+.hdr p{font-size:10px;color:var(--gray-400);margin-top:1px}
+.sec-lbl{font-size:9px;font-weight:500;color:var(--gray-400);text-transform:uppercase;letter-spacing:.06em;padding:0 13px 5px}
+
+/* ── ONBOARDING ── */
+.onb-hero{height:160px;background:var(--green-light);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;flex-shrink:0}
+.onb-hero .ic{font-size:46px}
+.onb-hero h1{font-family:var(--ff-d);font-size:17px;font-weight:500;color:var(--green-dark)}
+.onb-hero p{font-size:11px;color:var(--green-mid);text-align:center;padding:0 20px}
+.feat{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:0.5px solid var(--border)}
+.feat-ic{width:32px;height:32px;border-radius:10px;background:var(--green-light);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.feat-t{font-size:12px;font-weight:500}
+.feat-s{font-size:10px;color:var(--gray-400);margin-top:1px}
+.big-btn{margin:10px 14px 14px;padding:12px;border-radius:var(--r-md);background:var(--green);color:#fff;font-size:13px;font-weight:500;text-align:center;cursor:pointer;transition:background .15s;font-family:var(--ff)}
+.big-btn:hover{background:var(--green-mid)}
+
+/* ── HOME ── */
+.arc{margin:9px 12px;border:0.5px solid var(--border-mid);border-radius:var(--r-md);overflow:hidden;cursor:pointer;transition:opacity .15s}
+.arc:hover{opacity:.8}
+.arc-top{background:var(--green-light);padding:10px 12px;display:flex;align-items:center;gap:10px}
+.arc-top .em{font-size:24px}
+.arc-nm{font-size:12px;font-weight:500;color:var(--green-dark)}
+.arc-sb{font-size:10px;color:var(--green-mid);margin-top:1px}
+.arc-prog{padding:8px 12px 10px}
+.arc-pl{display:flex;justify-content:space-between;font-size:10px;color:var(--gray-400);margin-bottom:4px}
+.arc-tr{height:5px;background:var(--gray-100);border-radius:999px}
+.arc-fi{height:100%;border-radius:999px;background:var(--green);transition:width .5s}
+.ms-row{display:flex;gap:7px;margin:0 12px 10px}
+.ms{flex:1;background:var(--gray-50);border-radius:var(--r-sm);padding:8px;text-align:center;border:0.5px solid var(--border)}
+.ms-v{font-size:14px;font-weight:500}
+.ms-l{font-size:9px;color:var(--gray-400);margin-top:1px}
+.arow{display:flex;align-items:center;gap:10px;padding:7px 14px;border-bottom:0.5px solid var(--border);cursor:pointer}
+.arow:hover{background:var(--gray-50)}
+.aic{width:28px;height:28px;border-radius:8px;background:var(--gray-50);border:0.5px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+.anm{font-size:11px;font-weight:500}
+.amt{font-size:9px;color:var(--gray-400);margin-top:1px}
+.akm{font-size:11px;font-weight:500;color:var(--green)}
+.add-fab{margin:10px 14px 14px;padding:10px;border-radius:var(--r-md);border:0.5px solid var(--border-mid);background:transparent;font-size:12px;text-align:center;cursor:pointer;transition:background .15s;font-family:var(--ff)}
+.add-fab:hover{background:var(--gray-50)}
+
+/* ── MAP ── */
+#leaflet-map{width:100%;height:240px;flex-shrink:0}
+.map-hdr{padding:8px 12px 6px;border-bottom:0.5px solid var(--border);display:flex;align-items:center;gap:8px;flex-shrink:0}
+.map-hdr h2{font-size:13px;font-weight:500;flex:1;font-family:var(--ff-d)}
+.pos-badge{font-size:9px;padding:2px 7px;border-radius:999px;background:var(--green-light);color:var(--green-dark)}
+.map-prog{padding:7px 12px 5px;border-top:0.5px solid var(--border);flex-shrink:0}
+.mp-l{display:flex;justify-content:space-between;font-size:9px;color:var(--gray-400);margin-bottom:4px}
+.mp-tr{height:4px;background:var(--gray-100);border-radius:999px}
+.mp-fi{height:100%;border-radius:999px;background:var(--green);transition:width .5s}
+.trow{display:flex;align-items:center;gap:8px;padding:6px 12px;border-bottom:0.5px solid var(--border)}
+.trow:last-child{border-bottom:none}
+.tnum{width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:500;flex-shrink:0}
+.td{background:var(--green-light);color:var(--green-dark)}
+.tc{background:var(--green);color:#fff}
+.tt{background:var(--gray-50);color:var(--gray-400);border:0.5px solid var(--border)}
+.tname{font-size:10px;font-weight:500;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tsub{font-size:9px;color:var(--gray-400)}
+.tbadge{font-size:9px;padding:2px 6px;border-radius:999px;white-space:nowrap}
+.tbd{background:var(--green-light);color:var(--green-dark)}
+.tbc{background:var(--amber-light);color:#633806}
+.tbt{background:var(--gray-50);color:var(--gray-400);border:0.5px solid var(--border)}
+.slider-wrap{padding:8px 12px 10px;border-top:0.5px solid var(--border);flex-shrink:0}
+.sl-lbl{font-size:9px;color:var(--gray-600);margin-bottom:4px}
+.sl-row{display:flex;align-items:center;gap:8px}
+.sl-row input{flex:1;accent-color:var(--green)}
+.sl-row span{font-size:10px;font-weight:500;color:var(--green);min-width:50px;text-align:right}
+
+/* ── EXPLORE ── */
+.search-box{margin:8px 12px;display:flex;align-items:center;gap:6px;background:var(--gray-50);border-radius:10px;padding:7px 10px;border:0.5px solid var(--border-mid)}
+.search-box input{border:none;background:transparent;font-size:11px;flex:1;outline:none;font-family:var(--ff);color:var(--gray-900)}
+.search-box input::placeholder{color:var(--gray-400)}
+.frow{display:flex;gap:5px;padding:0 12px 8px;overflow-x:auto;scrollbar-width:none}
+.frow::-webkit-scrollbar{display:none}
+.fp{padding:4px 10px;border-radius:999px;font-size:10px;border:0.5px solid var(--border-mid);background:transparent;color:var(--gray-600);cursor:pointer;white-space:nowrap;font-family:var(--ff);transition:all .15s}
+.fp.on{background:var(--gray-900);color:#fff;border-color:var(--gray-900)}
+.pcard{display:flex;gap:10px;padding:9px 14px;border-bottom:0.5px solid var(--border);cursor:pointer;transition:background .1s}
+.pcard:hover{background:var(--gray-50)}
+.pcard-ic{width:44px;height:44px;border-radius:10px;background:var(--gray-50);border:0.5px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
+.pcard-nm{font-size:12px;font-weight:500}
+.pcard-sb{font-size:10px;color:var(--gray-400);margin-top:2px}
+.pcard-tag{display:inline-block;font-size:9px;padding:1px 6px;border-radius:999px;margin-top:3px}
+.tag-p{background:#EEEDFE;color:#3C3489}
+.tag-a{background:#E1F5EE;color:#085041}
+.tag-s{background:#FAEEDA;color:#633806}
+.tag-n{background:#EAF3DE;color:#27500A}
+.tag-c{background:#FAECE7;color:#712B13}
+.pcard-arr{color:var(--gray-400);font-size:14px;align-self:center}
+
+/* ── DETAIL ── */
+.det-hero{height:120px;background:var(--green-light);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:4px;flex-shrink:0;position:relative}
+.back-btn{position:absolute;top:10px;left:10px;background:#fff;border:0.5px solid var(--border-mid);border-radius:8px;padding:4px 8px;font-size:10px;cursor:pointer;color:var(--gray-600);font-family:var(--ff)}
+.det-em{font-size:40px}
+.det-cat{font-size:10px;color:var(--green-mid)}
+.det-body{padding:10px 14px}
+.det-title{font-size:15px;font-weight:500;font-family:var(--ff-d)}
+.det-meta{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
+.det-m{font-size:10px;color:var(--gray-400)}
+.det-desc{font-size:11px;color:var(--gray-600);margin-top:8px;line-height:1.55}
+.photos-row{display:flex;gap:6px;padding:0 14px 10px}
+.ph-th{width:70px;height:50px;border-radius:8px;background:var(--gray-100);border:0.5px solid var(--border);overflow:hidden;flex-shrink:0}
+.ph-th img{width:100%;height:100%;object-fit:cover}
+.curio-sec{padding:0 14px 10px}
+.curio-lbl{font-size:9px;font-weight:500;color:var(--gray-400);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
+.curio-card{background:var(--gray-50);border-radius:8px;padding:8px 10px;margin-bottom:6px;border:0.5px solid var(--border)}
+.curio-card p{font-size:10px;color:var(--gray-600);line-height:1.5}
+.start-btn{margin:0 14px 14px;padding:11px;border-radius:var(--r-md);background:var(--green);color:#fff;font-size:12px;font-weight:500;text-align:center;cursor:pointer;transition:background .15s;font-family:var(--ff)}
+.start-btn:hover{background:var(--green-mid)}
+
+/* ── LOG ── */
+.log-hdr{padding:11px 14px 7px;border-bottom:0.5px solid var(--border);flex-shrink:0}
+.log-hdr h2{font-size:14px;font-weight:500;font-family:var(--ff-d)}
+.log-hdr p{font-size:10px;color:var(--gray-400);margin-top:1px}
+.lbody{padding:12px 14px}
+.llbl{font-size:10px;color:var(--gray-600);margin-bottom:6px}
+.type-pills{display:flex;gap:6px;margin-bottom:12px}
+.tp{flex:1;padding:8px 4px;border-radius:10px;border:0.5px solid var(--border-mid);font-size:10px;text-align:center;cursor:pointer;color:var(--gray-600);font-family:var(--ff);transition:all .15s}
+.tp.sel{border-color:var(--green);background:var(--green-light);color:var(--green-dark);font-weight:500}
+.km-box{display:flex;align-items:center;gap:10px;margin-bottom:12px;background:var(--gray-50);border-radius:10px;padding:10px 12px;border:0.5px solid var(--border)}
+.km-val{font-size:24px;font-weight:500;flex:1;text-align:center;font-family:var(--ff-d)}
+.km-unit{font-size:12px;color:var(--gray-400)}
+.km-btn{width:28px;height:28px;border-radius:8px;background:#fff;border:0.5px solid var(--border-mid);display:flex;align-items:center;justify-content:center;font-size:16px;cursor:pointer;color:var(--gray-600);flex-shrink:0;user-select:none;transition:background .1s}
+.km-btn:hover{background:var(--gray-100)}
+.src-row{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:12px}
+.src{padding:5px 9px;border-radius:999px;border:0.5px solid var(--border-mid);font-size:10px;color:var(--gray-600);cursor:pointer;font-family:var(--ff);transition:all .15s}
+.src.sel{background:var(--gray-900);color:#fff;border-color:var(--gray-900)}
+.preview{background:var(--gray-50);border-radius:10px;padding:10px 12px;margin-bottom:12px;border:0.5px solid var(--border)}
+.pv-lbl{font-size:9px;color:var(--gray-400);margin-bottom:5px}
+.pv-tr{height:5px;background:var(--gray-200);border-radius:999px;margin-bottom:3px}
+.pv-fi{height:100%;border-radius:999px;background:var(--green);transition:width .3s}
+.pv-info{display:flex;justify-content:space-between;font-size:9px;color:var(--gray-400)}
+.conf-btn{width:100%;padding:11px;border-radius:var(--r-md);background:var(--green);color:#fff;font-size:12px;font-weight:500;cursor:pointer;font-family:var(--ff);border:none;transition:background .15s}
+.conf-btn:hover{background:var(--green-mid)}
+
+/* ── PROFILE ── */
+.prof-hdr{padding:16px 14px 12px;border-bottom:0.5px solid var(--border);text-align:center;flex-shrink:0}
+.prof-av{width:52px;height:52px;border-radius:50%;background:var(--green-light);border:2px solid var(--green);display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:500;color:var(--green-dark);margin:0 auto 8px;font-family:var(--ff-d)}
+.prof-nm{font-size:14px;font-weight:500;font-family:var(--ff-d)}
+.prof-si{font-size:10px;color:var(--gray-400);margin-top:2px}
+.badge-row{display:flex;gap:6px;padding:10px 12px;border-bottom:0.5px solid var(--border);flex-shrink:0}
+.bdg{flex:1;background:var(--gray-50);border-radius:10px;padding:8px;text-align:center;border:0.5px solid var(--border)}
+.bdg-ic{font-size:16px}
+.bdg-v{font-size:12px;font-weight:500;margin-top:2px;font-family:var(--ff-d)}
+.bdg-l{font-size:9px;color:var(--gray-400)}
+.streak{margin:10px 12px;background:var(--amber-light);border-radius:10px;padding:10px 12px;display:flex;align-items:center;gap:10px;border:0.5px solid #FAC775}
+.streak-ic{font-size:22px}
+.streak-v{font-size:15px;font-weight:500;color:#633806;font-family:var(--ff-d)}
+.streak-l{font-size:10px;color:#854F0B;margin-top:1px}
+.conn-sec{padding:8px 12px}
+.conn-lbl{font-size:9px;font-weight:500;color:var(--gray-400);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
+.crow{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:0.5px solid var(--border)}
+.crow:last-child{border-bottom:none}
+.cic{width:26px;height:26px;border-radius:8px;background:var(--gray-50);border:0.5px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0}
+.cnm{font-size:11px;font-weight:500;flex:1}
+.cst{font-size:9px;padding:2px 7px;border-radius:999px}
+.cs-on{background:var(--green-light);color:var(--green-dark)}
+.cs-off{background:var(--gray-50);color:var(--gray-400);border:0.5px solid var(--border)}
+
+/* ── RIGHT PANEL ── */
+.panel{flex:1;min-width:220px;max-width:300px}
+.panel h2{font-family:var(--ff-d);font-size:22px;font-weight:500;margin-bottom:4px;line-height:1.2}
+.panel h2 em{font-style:italic;color:var(--green)}
+.panel-sub{font-size:13px;color:var(--gray-600);margin-bottom:20px;line-height:1.55}
+.nav-list{display:flex;flex-direction:column;gap:4px;margin-bottom:20px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:var(--r-md);border:0.5px solid var(--border-mid);cursor:pointer;transition:all .15s;background:#fff}
+.nav-item:hover{background:var(--gray-50)}
+.nav-item.active-nav{background:var(--green-light);border-color:var(--green)}
+.nav-ic{font-size:16px;width:22px;text-align:center}
+.nav-nm{font-size:13px;font-weight:500}
+.nav-ds{font-size:10px;color:var(--gray-400);margin-top:1px}
+.nav-item.active-nav .nav-nm{color:var(--green-dark)}
+.nav-item.active-nav .nav-ds{color:var(--green-mid)}
+.divider{height:0.5px;background:var(--border-mid);margin:16px 0}
+.info-card{background:#fff;border-radius:var(--r-md);padding:14px 16px;border:0.5px solid var(--border-mid)}
+.info-card p{font-size:12px;color:var(--gray-600);line-height:1.7}
+.info-card strong{font-weight:500;color:var(--gray-900)}
+.info-val{color:var(--green);font-weight:500}
+
+/* ── FOOTER ── */
+.footer{font-size:11px;color:var(--gray-400);text-align:center;margin-top:8px}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="page-hdr">
+    <h1>Cammina il <em>mondo</em></h1>
+    <p>Prototipo interattivo — naviga tra le schermate oppure usa la barra in basso nel telefono.</p>
+  </div>
+
+  <div class="stage">
+
+    <!-- PHONE -->
+    <div class="phone-wrap">
+    <div class="phone">
+      <div class="notch"><div class="notch-dot"></div></div>
+      <div class="toast" id="toast"><span style="font-size:16px">🎉</span><div><p id="toast-t">Tappa sbloccata!</p><small id="toast-s">Hai raggiunto una nuova tappa</small></div></div>
+      <div class="sbar"><span>9:41</span><small>●●● ▮</small></div>
+
+      <!-- ONBOARDING -->
+      <div class="screen active" id="s-onb">
+        <div class="onb-hero">
+          <div class="ic">🗺️</div>
+          <h1>Cammina il mondo</h1>
+          <p>Percorri i grandi cammini con i tuoi passi quotidiani</p>
+        </div>
+        <div class="scroll">
+          <div class="feat"><div class="feat-ic">🏃</div><div><div class="feat-t">Sincronizza attività</div><div class="feat-s">Apple Health · Strava · Garmin</div></div></div>
+          <div class="feat"><div class="feat-ic">🗺️</div><div><div class="feat-t">Mappa reale</div><div class="feat-s">Segui il percorso geografico</div></div></div>
+          <div class="feat"><div class="feat-ic">⛩️</div><div><div class="feat-t">Sblocca tappe</div><div class="feat-s">Curiosità AI ad ogni tappa</div></div></div>
+          <div class="feat"><div class="feat-ic">🚴</div><div><div class="feat-t">Cammino, corsa, bici</div><div class="feat-s">Tutte le attività contano</div></div></div>
+        </div>
+        <div class="big-btn" onclick="go('s-home','home')">Inizia il tuo cammino →</div>
+      </div>
+
+      <!-- HOME -->
+      <div class="screen" id="s-home">
+        <div class="hdr"><h2>Ciao, Marco 👋</h2><p>Il tuo cammino virtuale è in corso</p></div>
+        <div class="scroll">
+          <div class="arc" onclick="go('s-map','map')">
+            <div class="arc-top"><div class="em">⛩️</div><div><div class="arc-nm">Shikoku Henro</div><div class="arc-sb">1.200 km · 88 templi · Giappone</div></div></div>
+            <div class="arc-prog"><div class="arc-pl"><span id="h-km-lbl">42 km percorsi</span><span id="h-pct-lbl">3.5%</span></div><div class="arc-tr"><div class="arc-fi" id="h-prog" style="width:3.5%"></div></div></div>
+          </div>
+          <div class="ms-row">
+            <div class="ms"><div class="ms-v" id="h-stat-km">42</div><div class="ms-l">km totali</div></div>
+            <div class="ms"><div class="ms-v" id="h-stat-g">7</div><div class="ms-l">giorni</div></div>
+            <div class="ms"><div class="ms-v" id="h-stat-t">1/7</div><div class="ms-l">tappe</div></div>
+          </div>
+          <div class="sec-lbl">Attività recenti</div>
+          <div id="act-list"></div>
+          <div class="add-fab" onclick="go('s-log','log')">+ Registra attività</div>
+        </div>
+        <div class="bnav">
+          <div class="bni on" onclick="go('s-home','home')"><svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg><span>Home</span></div>
+          <div class="bni" onclick="go('s-map','map')"><svg viewBox="0 0 24 24"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg><span>Mappa</span></div>
+          <div class="bni" onclick="go('s-explore','explore')"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg><span>Esplora</span></div>
+          <div class="bni" onclick="go('s-log','log')"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg><span>Log</span></div>
+          <div class="bni" onclick="go('s-profile','profile')"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span>Profilo</span></div>
+        </div>
+      </div>
+
+      <!-- MAP -->
+      <div class="screen" id="s-map">
+        <div class="map-hdr"><h2>⛩️ Shikoku Henro</h2><span class="pos-badge" id="map-badge">Tempio 1</span></div>
+        <div id="leaflet-map"></div>
+        <div class="map-prog"><div class="mp-l"><span id="mp-km">42 km</span><span id="mp-pct">3.5%</span></div><div class="mp-tr"><div class="mp-fi" id="mp-fi" style="width:3.5%"></div></div></div>
+        <div class="scroll" id="tappe-scroll"></div>
+        <div class="slider-wrap"><div class="sl-lbl">Simula avanzamento</div><div class="sl-row"><input type="range" min="0" max="1200" step="5" value="42" id="km-slider" oninput="onSlider(this.value)"><span id="sl-val">42 km</span></div></div>
+        <div class="bnav">
+          <div class="bni" onclick="go('s-home','home')"><svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg><span>Home</span></div>
+          <div class="bni on"><svg viewBox="0 0 24 24"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg><span>Mappa</span></div>
+          <div class="bni" onclick="go('s-explore','explore')"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg><span>Esplora</span></div>
+          <div class="bni" onclick="go('s-log','log')"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg><span>Log</span></div>
+          <div class="bni" onclick="go('s-profile','profile')"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span>Profilo</span></div>
+        </div>
+      </div>
+
+      <!-- EXPLORE -->
+      <div class="screen" id="s-explore">
+        <div class="hdr"><h2>Esplora percorsi</h2><p>Scegli il tuo prossimo cammino</p></div>
+        <div class="search-box"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9A9890" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg><input type="text" placeholder="Cerca..." id="exp-search" oninput="filterExp()"></div>
+        <div class="frow" id="exp-filters"></div>
+        <div class="scroll" id="exp-list"></div>
+        <div class="bnav">
+          <div class="bni" onclick="go('s-home','home')"><svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg><span>Home</span></div>
+          <div class="bni" onclick="go('s-map','map')"><svg viewBox="0 0 24 24"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg><span>Mappa</span></div>
+          <div class="bni on"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg><span>Esplora</span></div>
+          <div class="bni" onclick="go('s-log','log')"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg><span>Log</span></div>
+          <div class="bni" onclick="go('s-profile','profile')"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span>Profilo</span></div>
+        </div>
+      </div>
+
+      <!-- DETAIL -->
+      <div class="screen" id="s-detail">
+        <div class="det-hero">
+          <div class="back-btn" onclick="go('s-explore','explore')">← Indietro</div>
+          <div class="det-em" id="det-em">⛩️</div>
+          <div class="det-cat" id="det-cat">pellegrinaggio</div>
+        </div>
+        <div class="scroll">
+          <div class="det-body">
+            <div class="det-title" id="det-title"></div>
+            <div class="det-meta" id="det-meta"></div>
+            <div class="det-desc" id="det-desc"></div>
+          </div>
+          <div class="photos-row" id="det-photos"></div>
+          <div class="curio-sec"><div class="curio-lbl">Curiosità</div><div id="det-curio"></div></div>
+          <div class="start-btn" onclick="go('s-home','home')">Inizia questo percorso</div>
+        </div>
+      </div>
+
+      <!-- LOG -->
+      <div class="screen" id="s-log">
+        <div class="log-hdr"><h2>Registra attività</h2><p>Aggiungi km al tuo percorso</p></div>
+        <div class="scroll"><div class="lbody">
+          <div class="llbl">Tipo di attività</div>
+          <div class="type-pills">
+            <div class="tp sel" data-t="camminata" onclick="selType(this)">🚶 Camminata</div>
+            <div class="tp" data-t="corsa" onclick="selType(this)">🏃 Corsa</div>
+            <div class="tp" data-t="bicicletta" onclick="selType(this)">🚴 Bici</div>
+          </div>
+          <div class="llbl">Distanza</div>
+          <div class="km-box">
+            <div class="km-btn" onclick="adjKm(-1)">−</div>
+            <div style="flex:1;text-align:center"><span class="km-val" id="km-disp">6</span> <span class="km-unit">km</span></div>
+            <div class="km-btn" onclick="adjKm(1)">+</div>
+          </div>
+          <div class="llbl">Importa da</div>
+          <div class="src-row">
+            <div class="src sel" onclick="selSrc(this)">Apple Health</div>
+            <div class="src" onclick="selSrc(this)">Google Fit</div>
+            <div class="src" onclick="selSrc(this)">Strava</div>
+            <div class="src" onclick="selSrc(this)">Garmin</div>
+            <div class="src" onclick="selSrc(this)">Manuale</div>
+          </div>
+          <div class="preview">
+            <div class="pv-lbl">Anteprima avanzamento</div>
+            <div class="pv-tr"><div class="pv-fi" id="pv-before" style="width:3.5%"></div></div>
+            <div style="height:4px"></div>
+            <div class="pv-tr"><div class="pv-fi" id="pv-after" style="width:4%"></div></div>
+            <div class="pv-info"><span id="pv-bl">Prima: 42 km</span><span id="pv-al">Dopo: 48 km</span></div>
+          </div>
+          <button class="conf-btn" onclick="confirmLog()">Aggiungi al percorso ✓</button>
+        </div></div>
+        <div class="bnav">
+          <div class="bni" onclick="go('s-home','home')"><svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg><span>Home</span></div>
+          <div class="bni" onclick="go('s-map','map')"><svg viewBox="0 0 24 24"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg><span>Mappa</span></div>
+          <div class="bni" onclick="go('s-explore','explore')"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg><span>Esplora</span></div>
+          <div class="bni on"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg><span>Log</span></div>
+          <div class="bni" onclick="go('s-profile','profile')"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span>Profilo</span></div>
+        </div>
+      </div>
+
+      <!-- PROFILE -->
+      <div class="screen" id="s-profile">
+        <div class="prof-hdr">
+          <div class="prof-av">M</div>
+          <div class="prof-nm">Marco Rossi</div>
+          <div class="prof-si">Camminatore dal marzo 2026</div>
+        </div>
+        <div class="badge-row">
+          <div class="bdg"><div class="bdg-ic">🌍</div><div class="bdg-v" id="p-km">42</div><div class="bdg-l">km totali</div></div>
+          <div class="bdg"><div class="bdg-ic">🏅</div><div class="bdg-v" id="p-tappe">1</div><div class="bdg-l">tappe</div></div>
+          <div class="bdg"><div class="bdg-ic">🔥</div><div class="bdg-v">7</div><div class="bdg-l">giorni streak</div></div>
+        </div>
+        <div class="scroll">
+          <div class="streak"><div class="streak-ic">🔥</div><div><div class="streak-v">7 giorni consecutivi</div><div class="streak-l">Non spezzare la striscia!</div></div></div>
+          <div class="conn-sec">
+            <div class="conn-lbl">App connesse</div>
+            <div class="crow"><div class="cic">❤️</div><div class="cnm">Apple Health</div><span class="cst cs-on">Connesso</span></div>
+            <div class="crow"><div class="cic">🟠</div><div class="cnm">Strava</div><span class="cst cs-on">Connesso</span></div>
+            <div class="crow"><div class="cic">⌚</div><div class="cnm">Garmin</div><span class="cst cs-on">Connesso</span></div>
+            <div class="crow"><div class="cic">🔵</div><div class="cnm">Google Fit</div><span class="cst cs-off">Collega</span></div>
+          </div>
+        </div>
+        <div class="bnav">
+          <div class="bni" onclick="go('s-home','home')"><svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg><span>Home</span></div>
+          <div class="bni" onclick="go('s-map','map')"><svg viewBox="0 0 24 24"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg><span>Mappa</span></div>
+          <div class="bni" onclick="go('s-explore','explore')"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg><span>Esplora</span></div>
+          <div class="bni" onclick="go('s-log','log')"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg><span>Log</span></div>
+          <div class="bni on"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span>Profilo</span></div>
+        </div>
+      </div>
+
+    </div><!-- /phone -->
+    </div><!-- /phone-wrap -->
+
+    <!-- RIGHT PANEL -->
+    <div class="panel">
+      <h2>Naviga<br><em>l'app</em></h2>
+      <p class="panel-sub">Clicca su una schermata o usa la barra in basso nel telefono.</p>
+      <div class="nav-list">
+        <div class="nav-item" id="nav-onb" onclick="go('s-onb','onb')"><div class="nav-ic">👋</div><div><div class="nav-nm">Onboarding</div><div class="nav-ds">Presentazione funzionalità</div></div></div>
+        <div class="nav-item active-nav" id="nav-home" onclick="go('s-home','home')"><div class="nav-ic">🏠</div><div><div class="nav-nm">Home</div><div class="nav-ds">Percorso attivo e attività</div></div></div>
+        <div class="nav-item" id="nav-map" onclick="go('s-map','map')"><div class="nav-ic">🗺️</div><div><div class="nav-nm">Mappa reale</div><div class="nav-ds">Progresso sullo Shikoku Henro</div></div></div>
+        <div class="nav-item" id="nav-explore" onclick="go('s-explore','explore')"><div class="nav-ic">🔍</div><div><div class="nav-nm">Esplora percorsi</div><div class="nav-ds">Tutti i 12 cammini del mondo</div></div></div>
+        <div class="nav-item" id="nav-log" onclick="go('s-log','log')"><div class="nav-ic">➕</div><div><div class="nav-nm">Log attività</div><div class="nav-ds">Registra km e passi</div></div></div>
+        <div class="nav-item" id="nav-profile" onclick="go('s-profile','profile')"><div class="nav-ic">👤</div><div><div class="nav-nm">Profilo</div><div class="nav-ds">Badge, streak e connessioni</div></div></div>
+      </div>
+      <div class="divider"></div>
+      <div class="info-card">
+        <p><strong>Schermata:</strong> <span id="cur-lbl">Home</span></p>
+        <p><strong>Km percorsi:</strong> <span class="info-val" id="info-km">42</span> / 1.200</p>
+        <p><strong>Progresso:</strong> <span class="info-val" id="info-pct">3.5</span>%</p>
+        <p><strong>Tappe sbloccate:</strong> <span class="info-val" id="info-t">1</span> / 7</p>
+      </div>
+    </div>
+
+  </div><!-- /stage -->
+
+  <div class="footer">Prototipo interattivo · Cammina il Mondo · 2026</div>
+
+</div><!-- /page -->
+
+<script>
+const TOTAL=1200;
+const tappe=[
+  {n:"Tempio 1 — Ryōzen-ji",sub:"Tokushima",km:0,lat:34.073,lng:134.547},
+  {n:"Tempio 12 — Shōsan-ji",sub:"Il tempio sulla montagna",km:90,lat:33.922,lng:134.328},
+  {n:"Tempio 23 — Yakuō-ji",sub:"Tempio della longevità",km:240,lat:33.589,lng:134.536},
+  {n:"Tempio 38 — Kongōfuku-ji",sub:"Capo Ashizuri",km:400,lat:32.726,lng:132.978},
+  {n:"Tempio 51 — Ishite-ji",sub:"Matsuyama",km:560,lat:33.839,lng:132.760},
+  {n:"Tempio 66 — Unpen-ji",sub:"Il tempio più alto",km:780,lat:34.103,lng:133.631},
+  {n:"Tempio 88 — Ōkubo-ji",sub:"Il traguardo finale",km:1150,lat:34.220,lng:134.181},
+];
+const routeCoords=[[34.073,134.547],[33.922,134.328],[33.750,134.200],[33.589,134.536],[33.450,134.100],[33.200,133.500],[32.950,133.050],[32.726,132.978],[33.000,132.800],[33.350,132.650],[33.839,132.760],[34.050,132.900],[34.200,133.200],[34.103,133.631],[34.050,134.000],[34.220,134.181],[34.150,134.350],[34.073,134.547]];
+const percorsi=[
+  {id:"santiago",em:"✝️",nome:"Cammino di Santiago",cat:"p",km:780,da:"Francia → Spagna",giorni:"30–35 giorni",desc:"Il pellegrinaggio cristiano più celebre d'Europa attraversa i Pirenei fino alla cattedrale di Santiago de Compostela.",foto:["https://images.unsplash.com/photo-1586348943529-beaae6c28db9?w=140&h=100&fit=crop","https://images.unsplash.com/photo-1555993539-1732b0258235?w=140&h=100&fit=crop"],curio:["I pellegrini medievali portavano una conchiglia di capesante come simbolo del cammino — ancora oggi è il simbolo ufficiale.","Il 25 luglio, festa di San Giacomo, si celebra il Botafumeiro: un enorme turibolo che oscilla nella navata della cattedrale."]},
+  {id:"coast2coast",em:"🛣️",nome:"Coast to Coast USA",cat:"a",km:4500,da:"New York → Los Angeles",giorni:"3–6 mesi",desc:"La traversata continentale degli USA da oceano a oceano attraverso deserti, praterie, montagne e metropoli iconiche.",foto:["https://images.unsplash.com/photo-1501594907352-04cda38ebc29?w=140&h=100&fit=crop","https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=140&h=100&fit=crop"],curio:["La Route 66, inaugurata nel 1926, fu la prima strada federale degli USA a attraversare il continente.","Il confine di fuso orario nel Missouri fa 'saltare' l'orologio di un'ora — i viaggiatori lo notano spesso all'improvviso."]},
+  {id:"seta",em:"🐪",nome:"Via della Seta",cat:"s",km:12000,da:"Venezia → Pechino",giorni:"Mesi",desc:"Il leggendario percorso narrato da Marco Polo. Attraversa Turchia, Iran, Asia Centrale e il deserto del Taklamakan.",foto:["https://images.unsplash.com/photo-1524492412937-b28074a5d7da?w=140&h=100&fit=crop","https://images.unsplash.com/photo-1542621334-a254cf47733d?w=140&h=100&fit=crop"],curio:["Sulla Via della Seta non si commerciava solo seta: carta, polvere da sparo, bussola e spezie viaggiavano verso occidente.","Marco Polo trascorse 17 anni alla corte di Kublai Khan — al ritorno molti veneziani non lo riconobbero."]},
+  {id:"appalachian",em:"🌲",nome:"Appalachian Trail",cat:"n",km:3500,da:"Georgia → Maine",giorni:"5–7 mesi",desc:"Il sentiero più iconico d'America attraversa 14 stati. Solo il 25% dei thru-hiker completa l'intera traversata.",foto:["https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=140&h=100&fit=crop","https://images.unsplash.com/photo-1551632811-561732d1e306?w=140&h=100&fit=crop"],curio:["Il percorso fu completato per la prima volta nel 1948 da Earl Shaffer, veterano della Seconda Guerra Mondiale, in 124 giorni.","Lungo il trail ci sono oltre 250 rifugi costruiti dai volontari dell'Appalachian Trail Conservancy."]},
+  {id:"francigena",em:"⛪",nome:"Via Francigena",cat:"p",km:1800,da:"Canterbury → Roma",giorni:"60–80 giorni",desc:"L'antico itinerario medievale tracciato dall'arcivescovo Sigerico nel 994 d.C. Da Canterbury fino a San Pietro.",foto:["https://images.unsplash.com/photo-1552832230-c0197dd311b5?w=140&h=100&fit=crop","https://images.unsplash.com/photo-1467269204594-9661b134dd2b?w=140&h=100&fit=crop"],curio:["Sigerico annotò le 80 tappe del suo ritorno da Roma nel 994 — il primo 'diario di viaggio' europeo documentato.","Il valico del Gran San Bernardo era frequentato da pellegrini già nel IX secolo."]},
+  {id:"transib",em:"🚂",nome:"Trans-Siberiana",cat:"s",km:9289,da:"Mosca → Vladivostok",giorni:"6–7 giorni",desc:"La ferrovia più lunga del mondo. Attraversa 8 fusi orari, l'Ural e le rive del lago Bajkal.",foto:["https://images.unsplash.com/photo-1474487548417-781cb71495f3?w=140&h=100&fit=crop","https://images.unsplash.com/photo-1508009603885-50cf7c579365?w=140&h=100&fit=crop"],curio:["Durante il percorso si attraversano 987 ponti e 16 fiumi maggiori.","Il lago Bajkal contiene il 20% dell'acqua dolce non ghiacciata del pianeta."]},
+  {id:"inca",em:"🏔️",nome:"Inca Trail",cat:"n",km:45,da:"Ollantaytambo → Machu Picchu",giorni:"4 giorni",desc:"Il trekking più famoso del Sudamerica percorre sentieri precolombiani fino all'alba su Machu Picchu.",foto:["https://images.unsplash.com/photo-1526392060635-9d6019884377?w=140&h=100&fit=crop","https://images.unsplash.com/photo-1580502304784-8985b7eb7260?w=140&h=100&fit=crop"],curio:["Il permesso è limitato a 500 persone al giorno per proteggere l'ecosistema.","Le pietre del percorso sono originali — costruite dagli Inca nel XV secolo senza ruote."]},
+  {id:"grandtour",em:"🎨",nome:"Grand Tour Europeo",cat:"c",km:5000,da:"Londra → Napoli",giorni:"Mesi",desc:"Il viaggio formativo dell'aristocrazia europea tra XVII e XIX secolo. Goethe, Byron e Mozart percorsero queste strade.",foto:["https://images.unsplash.com/photo-1499856871958-5b9627545d1a?w=140&h=100&fit=crop","https://images.unsplash.com/photo-1529260830199-42c24126f198?w=140&h=100&fit=crop"],curio:["Il termine 'turista' nasce proprio dal Grand Tour — dal francese 'tour'.","Goethe rimase in Italia quasi 2 anni e scrisse 'Viaggio in Italia', ancora oggi un classico."]},
+  {id:"pct",em:"🏕️",nome:"Pacific Crest Trail",cat:"n",km:4265,da:"California → Canada",giorni:"5–6 mesi",desc:"Dall'arido deserto di Sonora alle Cascade Range. Sierra Nevada, Oregon e il monte Whitney a 4.418 m.",foto:["https://images.unsplash.com/photo-1448375240586-882707db888b?w=140&h=100&fit=crop","https://images.unsplash.com/photo-1501554728187-ce583db33af7?w=140&h=100&fit=crop"],curio:["Il PCT fu percorso per la prima volta in una sola stagione nel 1977 da Eric Ryback, diciassettenne.","Il trailhead a Campo è a soli 3 km dal confine con il Messico."]},
+  {id:"shikoku",em:"⛩️",nome:"Shikoku Henro",cat:"p",km:1200,da:"88 templi, Giappone",giorni:"30–60 giorni",desc:"Il pellegrinaggio buddhista più antico del Giappone, legato al monaco Kūkai. I pellegrini indossano abiti bianchi.",foto:["https://images.unsplash.com/photo-1478436127897-769e1b3f0f36?w=140&h=100&fit=crop","https://images.unsplash.com/photo-1528360983277-13d401cdc186?w=140&h=100&fit=crop"],curio:["I pellegrini che lo completano a piedi sono chiamati aruki henro — un titolo di grande rispetto.","Secondo la tradizione, il monaco Kūkai cammina invisibilmente accanto a ogni pellegrino."]},
+  {id:"vichinghi",em:"⚓",nome:"Rotta dei Vichinghi",cat:"s",km:6000,da:"Norvegia → America",giorni:"Settimane (nave)",desc:"Leif Eriksson raggiunse l'America 500 anni prima di Colombo navigando attraverso l'Atlantico settentrionale.",foto:["https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=140&h=100&fit=crop","https://images.unsplash.com/photo-1527095859861-a2fdf8a7c5c8?w=140&h=100&fit=crop"],curio:["I vichinghi navigavano con la 'pietra solare' — un cristallo che rivela la posizione del sole anche in cielo coperto.","L'insediamento di L'Anse aux Meadows in Terranova (1000 d.C.) è l'unica prova di un insediamento vichingo in America."]},
+  {id:"gta",em:"🗻",nome:"Grande Traversata Alpi",cat:"n",km:1000,da:"Domodossola → Ventimiglia",giorni:"50–60 giorni",desc:"Traversata longitudinale delle Alpi italiane da nord a sud attraverso Piemonte, Valle d'Aosta e Liguria.",foto:["https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=140&h=100&fit=crop","https://images.unsplash.com/photo-1486325212027-8081e485255e?w=140&h=100&fit=crop"],curio:["La GTA tocca vallate alpine remote con meno di 50 abitanti permanenti.","Il dislivello totale supera i 55.000 m — come scalare l'Everest sei volte e mezza."]},
+];
+const catMap={p:"pellegrinaggio",a:"avventura",s:"storico",n:"natura",c:"culturale"};
+const catCss={p:"tag-p",a:"tag-a",s:"tag-s",n:"tag-n",c:"tag-c"};
+const cats=["tutti","pellegrinaggio","avventura","storico","natura","culturale"];
+const typeIc={camminata:"🚶",corsa:"🏃",bicicletta:"🚴"};
+const screenLabels={onb:"Onboarding",home:"Home",map:"Mappa",explore:"Esplora percorsi",detail:"Dettaglio",log:"Log attività",profile:"Profilo"};
+
+let currentKm=42,logKm=6,logType="camminata",activeCat="tutti";
+let map,rdone,rtodo,umarker,tmarkers=[],mapInit=false;
+let activities=[
+  {type:"camminata",km:6,date:"Oggi",src:"Apple Health"},
+  {type:"corsa",km:8,date:"Ieri",src:"Strava"},
+  {type:"bicicletta",km:18,date:"2 giorni fa",src:"Garmin"},
+  {type:"camminata",km:10,date:"3 giorni fa",src:"Apple Health"},
+];
+
+function go(sid,key){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(sid).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active-nav'));
+  const ni=document.getElementById('nav-'+key);if(ni)ni.classList.add('active-nav');
+  document.getElementById('cur-lbl').textContent=screenLabels[key]||key;
+  if(sid==='s-map'&&!mapInit){setTimeout(initMap,120);mapInit=true;}
+  else if(sid==='s-map'&&map){setTimeout(()=>map.invalidateSize(),50);}
+  if(sid==='s-explore')renderExplore();
+}
+
+function initMap(){
+  map=L.map('leaflet-map',{center:[33.7,133.5],zoom:8,zoomControl:false,attributionControl:true});
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:17}).addTo(map);
+  renderMapRoute();
+}
+
+function hypot(a,b){return Math.sqrt((b[0]-a[0])**2+(b[1]-a[1])**2)}
+function getPosAtKm(km){
+  const segs=[];let tot=0;
+  for(let i=0;i<routeCoords.length-1;i++){const d=hypot(routeCoords[i],routeCoords[i+1]);segs.push(d);tot+=d;}
+  const tgt=(km/TOTAL)*tot;let acc=0;
+  for(let i=0;i<segs.length;i++){if(acc+segs[i]>=tgt){const t=(tgt-acc)/segs[i];return[routeCoords[i][0]+(routeCoords[i+1][0]-routeCoords[i][0])*t,routeCoords[i][1]+(routeCoords[i+1][1]-routeCoords[i][1])*t];}acc+=segs[i];}
+  return routeCoords[routeCoords.length-1];
+}
+function getDoneCoords(km){
+  const segs=[];let tot=0;
+  for(let i=0;i<routeCoords.length-1;i++){const d=hypot(routeCoords[i],routeCoords[i+1]);segs.push(d);tot+=d;}
+  const tgt=(km/TOTAL)*tot;const pts=[routeCoords[0]];let acc=0;
+  for(let i=0;i<segs.length;i++){if(acc+segs[i]<tgt){acc+=segs[i];pts.push(routeCoords[i+1]);}else{const t=(tgt-acc)/segs[i];pts.push([routeCoords[i][0]+(routeCoords[i+1][0]-routeCoords[i][0])*t,routeCoords[i][1]+(routeCoords[i+1][1]-routeCoords[i][1])*t]);break;}}
+  return pts;
+}
+
+function renderMapRoute(){
+  if(!map)return;
+  if(rdone)map.removeLayer(rdone);if(rtodo)map.removeLayer(rtodo);
+  if(umarker)map.removeLayer(umarker);tmarkers.forEach(m=>map.removeLayer(m));tmarkers=[];
+  rtodo=L.polyline(routeCoords,{color:'#aac89a',weight:3,dashArray:'6 5',opacity:0.7}).addTo(map);
+  if(currentKm>0){rdone=L.polyline(getDoneCoords(currentKm),{color:'#1D9E75',weight:4,opacity:1}).addTo(map);}
+  const pos=getPosAtKm(currentKm);
+  umarker=L.marker(pos,{icon:L.divIcon({html:`<div style="width:18px;height:18px;border-radius:50%;background:#1D9E75;border:3px solid white;box-shadow:0 1px 4px rgba(0,0,0,.3)"></div>`,className:'',iconAnchor:[9,9]})}).addTo(map);
+  tappe.forEach((t,i)=>{
+    const done=t.km<currentKm,cur=tappe.filter(x=>x.km<=currentKm).pop()===t;
+    const color=cur?'#EF9F27':done?'#1D9E75':'#ccc',sz=cur?12:8;
+    const mk=L.marker([t.lat,t.lng],{icon:L.divIcon({html:`<div style="width:${sz}px;height:${sz}px;border-radius:50%;background:${color};border:2px solid white;box-shadow:0 1px 3px rgba(0,0,0,.2)"></div>`,className:'',iconAnchor:[sz/2,sz/2]})}).addTo(map);
+    mk.bindTooltip(`<b style="font-size:10px">${t.n}</b><br><span style="font-size:9px;color:#666">${t.sub}</span>`,{direction:'top'});
+    tmarkers.push(mk);
+  });
+  const pct=((currentKm/TOTAL)*100).toFixed(1);
+  document.getElementById('mp-km').textContent=currentKm+' km';
+  document.getElementById('mp-pct').textContent=pct+'%';
+  document.getElementById('mp-fi').style.width=pct+'%';
+  const cur=tappe.filter(t=>t.km<=currentKm).pop()||tappe[0];
+  document.getElementById('map-badge').textContent=cur.n.split('—').pop().trim().substring(0,18);
+  renderTappeList();
+}
+
+function renderTappeList(){
+  const el=document.getElementById('tappe-scroll');el.innerHTML='';
+  tappe.forEach((t,i)=>{
+    const done=t.km<currentKm,cur=tappe.filter(x=>x.km<=currentKm).pop()===t;
+    const rem=Math.max(0,t.km-currentKm);
+    const row=document.createElement('div');row.className='trow';
+    const nc=cur?'tc':done?'td':'tt',bc=cur?'tbc':done?'tbd':'tbt',bt=cur?'In corso ●':done?'✓':rem+'km';
+    row.innerHTML=`<div class="tnum ${nc}">${i+1}</div><div style="flex:1;min-width:0"><div class="tname">${t.n}</div><div class="tsub">${t.sub}</div></div><span class="tbadge ${bc}">${bt}</span>`;
+    el.appendChild(row);
+  });
+}
+
+function onSlider(val){
+  const prev=tappe.filter(t=>t.km<=currentKm).length;
+  currentKm=parseInt(val);
+  document.getElementById('sl-val').textContent=currentKm+' km';
+  renderMapRoute();updateHome();updateInfo();
+  if(map){map.panTo(getPosAtKm(currentKm),{animate:true,duration:0.4});}
+  const cur=tappe.filter(t=>t.km<=currentKm).length;
+  if(cur>prev){const t=tappe[cur-1];showToast('Tappa sbloccata!',t.n.split('—').pop().trim());}
+}
+
+function updateHome(){
+  const pct=((currentKm/TOTAL)*100).toFixed(1);
+  document.getElementById('h-km-lbl').textContent=currentKm+' km percorsi';
+  document.getElementById('h-pct-lbl').textContent=pct+'%';
+  document.getElementById('h-prog').style.width=pct+'%';
+  document.getElementById('h-stat-km').textContent=currentKm;
+  const dt=tappe.filter(t=>t.km<=currentKm).length;
+  document.getElementById('h-stat-t').textContent=dt+'/'+tappe.length;
+  document.getElementById('p-km').textContent=currentKm;
+  document.getElementById('p-tappe').textContent=dt;
+  updatePreview();
+}
+
+function updateInfo(){
+  document.getElementById('info-km').textContent=currentKm;
+  document.getElementById('info-pct').textContent=((currentKm/TOTAL)*100).toFixed(1);
+  document.getElementById('info-t').textContent=tappe.filter(t=>t.km<=currentKm).length;
+}
+
+function updatePreview(){
+  const b=(currentKm/TOTAL)*100,a=((currentKm+logKm)/TOTAL)*100;
+  document.getElementById('pv-before').style.width=Math.min(b,100).toFixed(1)+'%';
+  document.getElementById('pv-after').style.width=Math.min(a,100).toFixed(1)+'%';
+  document.getElementById('pv-bl').textContent='Prima: '+currentKm+' km';
+  document.getElementById('pv-al').textContent='Dopo: '+(currentKm+logKm)+' km';
+}
+
+function renderActList(){
+  const el=document.getElementById('act-list');el.innerHTML='';
+  activities.slice(0,4).forEach(a=>{
+    const d=document.createElement('div');d.className='arow';
+    d.innerHTML=`<div class="aic">${typeIc[a.type]||'🚶'}</div><div style="flex:1"><div class="anm">${a.type.charAt(0).toUpperCase()+a.type.slice(1)}</div><div class="amt">${a.date} · ${a.src}</div></div><div class="akm">+${a.km} km</div>`;
+    el.appendChild(d);
+  });
+}
+
+function renderExplore(){
+  const fr=document.getElementById('exp-filters');
+  if(!fr.children.length){
+    cats.forEach(c=>{const b=document.createElement('div');b.className='fp'+(c===activeCat?' on':'');b.textContent=c;b.onclick=()=>{activeCat=c;document.querySelectorAll('.fp').forEach(x=>x.classList.remove('on'));b.classList.add('on');renderExpList();};fr.appendChild(b);});
+  }
+  renderExpList();
+}
+
+function filterExp(){renderExpList(document.getElementById('exp-search').value);}
+
+function renderExpList(q=''){
+  const el=document.getElementById('exp-list');el.innerHTML='';
+  percorsi.filter(p=>{
+    const catName=catMap[p.cat]||p.cat;
+    return(activeCat==='tutti'||catName===activeCat)&&(p.nome.toLowerCase().includes(q.toLowerCase())||p.da.toLowerCase().includes(q.toLowerCase()));
+  }).forEach(p=>{
+    const d=document.createElement('div');d.className='pcard';
+    d.innerHTML=`<div class="pcard-ic">${p.em}</div><div style="flex:1;min-width:0"><div class="pcard-nm">${p.nome}</div><div class="pcard-sb">${p.da} · ${p.km} km</div><span class="pcard-tag ${catCss[p.cat]}">${catMap[p.cat]||p.cat}</span></div><div class="pcard-arr">›</div>`;
+    d.onclick=()=>openDetail(p);
+    el.appendChild(d);
+  });
+}
+
+function openDetail(p){
+  document.getElementById('det-em').textContent=p.em;
+  document.getElementById('det-cat').textContent=catMap[p.cat]||p.cat;
+  document.getElementById('det-title').textContent=p.nome;
+  document.getElementById('det-meta').innerHTML=`<span class="det-m">📍 ${p.da}</span><span class="det-m">📏 ${p.km} km</span><span class="det-m">⏱ ${p.giorni}</span>`;
+  document.getElementById('det-desc').textContent=p.desc;
+  const ph=document.getElementById('det-photos');ph.innerHTML='';
+  p.foto.forEach(url=>{const t=document.createElement('div');t.className='ph-th';const img=document.createElement('img');img.src=url;img.style.cssText='width:100%;height:100%;object-fit:cover';t.appendChild(img);ph.appendChild(t);});
+  const cu=document.getElementById('det-curio');cu.innerHTML='';
+  p.curio.forEach(c=>{const d=document.createElement('div');d.className='curio-card';d.innerHTML=`<p>${c}</p>`;cu.appendChild(d);});
+  go('s-detail','detail');
+}
+
+function selType(btn){document.querySelectorAll('.tp').forEach(b=>b.classList.remove('sel'));btn.classList.add('sel');logType=btn.dataset.t;updatePreview();}
+function selSrc(btn){document.querySelectorAll('.src').forEach(b=>b.classList.remove('sel'));btn.classList.add('sel');}
+function adjKm(d){logKm=Math.max(1,Math.min(100,logKm+d));document.getElementById('km-disp').textContent=logKm;updatePreview();}
+
+function confirmLog(){
+  const prev=tappe.filter(t=>t.km<=currentKm).length;
+  activities.unshift({type:logType,km:logKm,date:'Adesso',src:'Manuale'});
+  currentKm+=logKm;
+  renderActList();updateHome();updateInfo();
+  const cur2=tappe.filter(t=>t.km<=currentKm).length;
+  go('s-home','home');
+  if(cur2>prev){const t=tappe[cur2-1];showToast('Tappa sbloccata!',t.n.split('—').pop().trim());}
+  else showToast('Attività aggiunta!',logKm+' km aggiunti al percorso');
+}
+
+function showToast(title,sub){
+  const t=document.getElementById('toast');
+  document.getElementById('toast-t').textContent=title;
+  document.getElementById('toast-s').textContent=sub;
+  t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2800);
+}
+
+renderActList();updatePreview();updateInfo();
+setTimeout(()=>go('s-home','home'),80);
+</script>
+</body>
+</html>
+HTMLEOF
+echo "Done"
